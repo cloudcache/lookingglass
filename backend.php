@@ -1,51 +1,23 @@
 <?php declare(strict_types=1);
-/**
- * Hybula Looking Glass
- *
- * Does the actual backend work for executed commands.
- *
- * @copyright 2025 Hybula B.V.
- * * @license Mozilla Public License 2.0
- * * @version 1.3.6
- * * @since File available since release 0.1
- * * @link https://github.com/hybula/lookingglass
- */
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/i18n.php';
+require_once __DIR__ . '/LookingGlass.php';
 
-require __DIR__.'/LookingGlass.php';
-require __DIR__.'/config.php';
+$cmd  = $_POST['cmd'] ?? '';
+$host = $_POST['host'] ?? '';
 
-use Hybula\LookingGlass;
+// 验证请求的方法是否在配置的允许列表中
+if (!array_key_exists($cmd, LG_COMMANDS)) {
+    die("Unauthorized method.");
+}
 
-LookingGlass::validateConfig();
-LookingGlass::startSession();
+$result = LookingGlass::$cmd($host);
 
-header('X-Accel-Buffering: no');
-
-if (isset($_SESSION[LookingGlass::SESSION_TARGET_HOST]) &&
-    isset($_SESSION[LookingGlass::SESSION_TARGET_METHOD]) &&
-    isset($_SESSION[LookingGlass::SESSION_CALL_BACKEND])
-) {
-    unset($_SESSION[LookingGlass::SESSION_CALL_BACKEND]);
-
-
-    switch ($_SESSION[LookingGlass::SESSION_TARGET_METHOD]) {
-        case LookingGlass::METHOD_PING:
-            LookingGlass::ping($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-        case LookingGlass::METHOD_PING6:
-            LookingGlass::ping6($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-        case LookingGlass::METHOD_MTR:
-            LookingGlass::mtr($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-        case LookingGlass::METHOD_MTR6:
-            LookingGlass::mtr6($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-        case LookingGlass::METHOD_TRACEROUTE:
-            LookingGlass::traceroute($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-        case LookingGlass::METHOD_TRACEROUTE6:
-            LookingGlass::traceroute6($_SESSION[LookingGlass::SESSION_TARGET_HOST]);
-            break;
-    }
+if (is_array($result) && isset($result['error'])) {
+    echo "<div class='alert'>" . htmlspecialchars($result['error']) . "</div>";
+} elseif ($cmd === 'bgp') {
+    // 渲染 BGP 表格逻辑
+    include __DIR__ . '/templates/bgp_table.php'; 
+} else {
+    echo "<pre>" . htmlspecialchars((string)$result) . "</pre>";
 }
